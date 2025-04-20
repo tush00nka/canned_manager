@@ -165,11 +165,16 @@ func handleNewTask(
 			day,
 			0, 0, 0, 0, time.UTC)
 
-		if year < time.Now().Year() ||
-			month < int(time.Now().Month()) ||
-			day < int(time.Now().Day()) {
-			msg = tgbotapi.NewMessage(message.Chat.ID,
-				"Нельзя создать задачу в прошлом!\n\nВведите предельную дату выполнения задачи\n(ДД.ММ.ГГ или ДД.ММ)")
+		msg = tgbotapi.NewMessage(message.Chat.ID,
+			"Нельзя создать задачу в прошлом!\n\nВведите предельную дату выполнения задачи\n(ДД.ММ.ГГ или ДД.ММ)")
+
+		if year < time.Now().Year() {
+			return
+		}
+		if month < int(time.Now().Month()) {
+			return
+		}
+		if day < int(time.Now().Day()) {
 			return
 		}
 
