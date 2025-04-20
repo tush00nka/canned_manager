@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -129,65 +128,5 @@ func handleOverview(message *tgbotapi.Message, states *map[uint]userState, db *g
 	default:
 		msg = tgbotapi.NewMessage(message.Chat.ID, "I don't know that command")
 	}
-	return
-}
-
-func handleNewTask(
-	message *tgbotapi.Message,
-	states *map[uint]userState,
-	descriptions *map[uint]string,
-	db *gorm.DB) (msg tgbotapi.MessageConfig) {
-	userID := uint(message.From.ID)
-
-	if (*descriptions)[userID] == "" {
-		(*descriptions)[userID] = message.Text
-		msg = tgbotapi.NewMessage(message.Chat.ID, "Введите предельную дату выполнения задачи\n(ДД.ММ.ГГ или ДД.ММ)")
-	} else {
-		parsed_date := strings.Split(message.Text, ".")
-
-		var year, month, day int
-
-		if len(parsed_date) >= 3 {
-			year, _ = strconv.Atoi(parsed_date[2])
-		} else {
-			year = message.Time().Year()
-			if len(strings.Split(fmt.Sprint(year), "")) <= 3 {
-				year += 2000
-			}
-		}
-
-		month, _ = strconv.Atoi(parsed_date[1])
-		day, _ = strconv.Atoi(parsed_date[0])
-
-		newDueTo := time.Date(
-			year,
-			time.Month(month),
-			day,
-			0, 0, 0, 0, time.UTC)
-
-		msg = tgbotapi.NewMessage(message.Chat.ID,
-			"Нельзя создать задачу в прошлом!\n\nВведите предельную дату выполнения задачи\n(ДД.ММ.ГГ или ДД.ММ)")
-
-		if year < message.Time().Year() {
-			return
-		} else if month < int(message.Time().Month()) {
-			return
-		} else if day < message.Time().Day() && month == int(message.Time().Month()) {
-			log.Printf("WHYY")
-			return
-		}
-
-		var user User
-		db.First(&user, message.From.ID)
-
-		task := Task{Description: (*descriptions)[userID], DueTo: newDueTo}
-		user.Tasks = append(user.Tasks, task)
-		db.Save(&user)
-
-		(*states)[userID] = OVERVIEW
-		(*descriptions)[userID] = ""
-		msg = tgbotapi.NewMessage(message.Chat.ID, "Задача создана!")
-	}
-
 	return
 }
