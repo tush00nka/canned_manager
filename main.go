@@ -170,11 +170,9 @@ func handleNewTask(
 
 		if year < time.Now().Year() {
 			return
-		}
-		if month < int(time.Now().Month()) {
+		} else if month < int(time.Now().Month()) {
 			return
-		}
-		if day < int(time.Now().Day()) {
+		} else if day < int(time.Now().Day()) {
 			return
 		}
 
