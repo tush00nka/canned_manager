@@ -31,7 +31,7 @@ func connectToDB() *gorm.DB {
 type User struct {
 	gorm.Model
 	ID    uint
-	Tasks []Task `gorm:foreignKey:UserID`
+	Tasks []Task `gorm:"foreignKey:UserID"`
 }
 
 type Task struct {
@@ -110,8 +110,8 @@ func main() {
 
 func handleOverview(message *tgbotapi.Message, states *map[uint]userState, db *gorm.DB) (msg tgbotapi.MessageConfig) {
 	switch message.Command() {
-	// case "start":
-	// 	msg = start()
+	case "start":
+		msg = start(message)
 
 	case "new_task":
 		msg = add_task(message)
@@ -124,7 +124,13 @@ func handleOverview(message *tgbotapi.Message, states *map[uint]userState, db *g
 		msg = select_task_to_delete(message, db)
 
 	case "help":
-		msg = tgbotapi.NewMessage(message.Chat.ID, "I can help you with the following commands:\n/start - Start the bot\n/help - Display this help message")
+		msg = tgbotapi.NewMessage(message.Chat.ID,
+			"Вот что я умею:\n"+
+				"/start - Запуск бота\n"+
+				"/new_task - Добавить задачу\n"+
+				"/list - Отобразить список задач\n"+
+				"/delete - Удалить задачу\n"+
+				"/help - Отобразить эту справку\n")
 	default:
 		msg = tgbotapi.NewMessage(message.Chat.ID, "I don't know that command")
 	}

@@ -22,7 +22,13 @@ func handleNewTask(
 		(*descriptions)[userID] = message.Text
 		msg = tgbotapi.NewMessage(message.Chat.ID, "Введите предельную дату выполнения задачи\n(ДД.ММ.ГГ или ДД.ММ)")
 	} else {
-		msg = getDate(message, descriptions, db)
+		var ok bool
+		msg, ok = getDate(message, descriptions, db)
+
+		if !ok {
+			return
+		}
+
 		(*states)[userID] = OVERVIEW
 		(*descriptions)[userID] = ""
 	}
@@ -71,7 +77,8 @@ func newDueTo(parsed_date *[]string) (dueTo time.Time, ok bool) {
 	return
 }
 
-func getDate(message *tgbotapi.Message, descriptions *map[uint]string, db *gorm.DB) (msg tgbotapi.MessageConfig) {
+func getDate(message *tgbotapi.Message, descriptions *map[uint]string, db *gorm.DB) (msg tgbotapi.MessageConfig, ok bool) {
+	ok = true
 	userID := uint(message.From.ID)
 	parsed_date := strings.Split(message.Text, ".")
 
@@ -88,10 +95,13 @@ func getDate(message *tgbotapi.Message, descriptions *map[uint]string, db *gorm.
 		"Нельзя создать задачу в прошлом!\n\nВведите предельную дату выполнения задачи\n(ДД.ММ.ГГ или ДД.ММ)")
 
 	if dueTo.Year() < message.Time().Year() {
+		ok = false
 		return
 	} else if dueTo.Month() < message.Time().Month() {
+		ok = false
 		return
 	} else if dueTo.Day() < message.Time().Day() && dueTo.Month() == message.Time().Month() {
+		ok = false
 		return
 	}
 

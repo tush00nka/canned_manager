@@ -8,8 +8,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func start() (msg string) {
-	msg = "Привет! Я буду ебать тебя с дедлайнами)"
+func start(message *tgbotapi.Message) (msg tgbotapi.MessageConfig) {
+	msg = tgbotapi.NewMessage(message.Chat.ID, "Привет! Я - бот-менеджер. Я помогаю организовать задачи и напоминаю о дедлайнах.\n\nДля получения справки используйте команду /help")
 	return
 }
 
