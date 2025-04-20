@@ -53,11 +53,12 @@ func newDueTo(parsed_date *[]string) (dueTo time.Time, ok bool) {
 			return
 		}
 		year = parsed_year
-	} else {
-		year = time.Now().Year()
 		if len(strings.Split(fmt.Sprint(year), "")) <= 3 {
 			year += 2000
 		}
+	} else {
+		year = time.Now().Year()
+
 	}
 
 	month, err := strconv.Atoi((*parsed_date)[1])
