@@ -8,52 +8,48 @@ import (
 	"gorm.io/gorm"
 )
 
-func start(message *tg.Message) (msg tg.MessageConfig) {
-	msg = tg.NewMessage(message.Chat.ID,
-		"Привет! Я - бот-менеджер. Я помогаю организовать задачи и напоминаю о дедлайнах.\n\nДля получения справки используйте команду /help")
+func start() (text string) {
+	text = "Привет! Я - бот-менеджер. Я помогаю организовать задачи и напоминаю о дедлайнах.\n\nДля получения справки используйте команду /help"
 	return
 }
 
-func list_tasks(message *tg.Message, db *gorm.DB) (msg tg.MessageConfig) {
+func list_tasks(message *tg.Message, db *gorm.DB) (text string) {
 	userID := uint(message.From.ID)
 
 	var tasks []Task
 	db.Find(&tasks, Task{UserID: userID})
 
 	if len(tasks) <= 0 {
-		msg = tg.NewMessage(message.Chat.ID, "У вас нет задач!")
+		text = "У вас нет задач!"
 		return
 	}
 
-	output := "Ваши задачи:\n\n"
+	text = "Ваши задачи:\n\n"
 
 	sort.Slice(tasks, func(i, j int) bool {
 		return tasks[i].DueTo.Before(tasks[j].DueTo)
 	})
 
 	for i, task := range tasks {
-		output += fmt.Sprintf("%d. %s (%d.%d.%d)\n", i+1, task.Description, task.DueTo.Day(), task.DueTo.Month(), task.DueTo.Year())
+		text += fmt.Sprintf("%d. %s (%d.%d.%d)\n", i+1, task.Description, task.DueTo.Day(), task.DueTo.Month(), task.DueTo.Year())
 	}
 
-	msg = tg.NewMessage(message.Chat.ID, output)
-
 	return
 }
 
-func add_task(message *tg.Message) (msg tg.MessageConfig) {
-	msg = tg.NewMessage(message.Chat.ID, "Опишите задачу")
-
+func add_task() (text string) {
+	text = "Опишите задачу"
 	return
 }
 
-func select_task(message *tg.Message, db *gorm.DB, callback_name string) (msg tg.MessageConfig) {
+func select_task(message *tg.Message, db *gorm.DB, callback_name string) (text string, keyboard tg.InlineKeyboardMarkup) {
 	userID := uint(message.From.ID)
 
 	var tasks []Task
 	db.Find(&tasks, Task{UserID: userID})
 
 	if len(tasks) <= 0 {
-		msg = tg.NewMessage(message.Chat.ID, "У вас нет задач!")
+		text = "У вас нет задач!"
 		return
 	}
 
@@ -68,9 +64,9 @@ func select_task(message *tg.Message, db *gorm.DB, callback_name string) (msg tg
 		goal = "действия"
 	}
 
-	msg = tg.NewMessage(message.Chat.ID, fmt.Sprintf("Выберите задачу для %s", goal))
+	text = fmt.Sprintf("Выберите задачу для %s", goal)
 
-	keyboard := tg.NewInlineKeyboardMarkup()
+	keyboard = tg.NewInlineKeyboardMarkup()
 
 	for _, task := range tasks {
 		keyboard.InlineKeyboard =
@@ -81,13 +77,11 @@ func select_task(message *tg.Message, db *gorm.DB, callback_name string) (msg tg
 	keyboard.InlineKeyboard = append(keyboard.InlineKeyboard,
 		tg.NewInlineKeyboardRow(tg.NewInlineKeyboardButtonData("Отмена", "cancel")))
 
-	msg.ReplyMarkup = keyboard
-
 	return
 }
 
-func delete_task(message *tg.Message, taskID uint, db *gorm.DB) (msg tg.MessageConfig) {
-	msg = tg.NewMessage(message.Chat.ID, "Задача удалена!")
+func delete_task(taskID uint, db *gorm.DB) (text string) {
+	text = "Задача удалена!"
 
 	var task Task
 	db.First(&task, taskID)
@@ -96,7 +90,7 @@ func delete_task(message *tg.Message, taskID uint, db *gorm.DB) (msg tg.MessageC
 	return
 }
 
-func complete_task(message *tg.Message, taskID uint, db *gorm.DB) (msg tg.MessageConfig) {
+func complete_task(taskID uint, db *gorm.DB) (text string) {
 
 	var task Task
 	var user User
@@ -106,8 +100,7 @@ func complete_task(message *tg.Message, taskID uint, db *gorm.DB) (msg tg.Messag
 	db.Save(&user)
 	db.Delete(&task)
 
-	msg = tg.NewMessage(message.Chat.ID,
-		fmt.Sprintf("Задача Выполнена!\nВсего выполнено задач: %d", user.CompletedTasksNumber))
+	text = fmt.Sprintf("Задача Выполнена!\nВсего выполнено задач: %d", user.CompletedTasksNumber)
 
 	return
 }

@@ -17,28 +17,26 @@ func handleNewTask(
 	message *tg.Message,
 	states *map[uint]userState,
 	descriptions *map[uint]string,
-	db *gorm.DB) (msg tg.MessageConfig) {
+	db *gorm.DB) (text string) {
 
 	userID := uint(message.From.ID)
 
 	if (*descriptions)[userID] == "" {
 		if len(message.Photo) > 0 {
-			msg = tg.NewMessage(message.Chat.ID,
-				fmt.Sprintf("Классная картинка, но описание задачи должно содержать текст!\n\n%s", TASK_INSTRUCTION))
+			text = fmt.Sprintf("Классная картинка, но описание задачи должно содержать текст!\n\n%s", TASK_INSTRUCTION)
 			return
 		}
 
 		if message.Text == "" {
-			msg = tg.NewMessage(message.Chat.ID,
-				fmt.Sprintf("Описание задачи должно содежрать текст!\n\n%s", TASK_INSTRUCTION))
+			text = fmt.Sprintf("Описание задачи должно содежрать текст!\n\n%s", TASK_INSTRUCTION)
 			return
 		}
 
 		(*descriptions)[userID] = message.Text
-		msg = tg.NewMessage(message.Chat.ID, DATE_INSTRUCTION)
+		text = DATE_INSTRUCTION
 	} else {
 		var ok bool
-		msg, ok = getDate(message, descriptions, db)
+		text, ok = getDate(message, descriptions, db)
 
 		if !ok {
 			return
@@ -93,13 +91,12 @@ func newDueTo(parsed_date *[]string) (dueTo time.Time, ok bool) {
 	return
 }
 
-func getDate(message *tg.Message, descriptions *map[uint]string, db *gorm.DB) (msg tg.MessageConfig, ok bool) {
+func getDate(message *tg.Message, descriptions *map[uint]string, db *gorm.DB) (text string, ok bool) {
 	ok = true
 	userID := uint(message.From.ID)
 	parsed_date := strings.Split(message.Text, ".")
 
-	msg = tg.NewMessage(message.Chat.ID,
-		fmt.Sprintf("Неверный формат даты!\n\n%s", DATE_INSTRUCTION))
+	text = fmt.Sprintf("Неверный формат даты!\n\n%s", DATE_INSTRUCTION)
 
 	dueTo, ok := newDueTo(&parsed_date)
 
@@ -107,8 +104,7 @@ func getDate(message *tg.Message, descriptions *map[uint]string, db *gorm.DB) (m
 		return
 	}
 
-	msg = tg.NewMessage(message.Chat.ID,
-		fmt.Sprintf("Нельзя создать задачу в прошлом!\n\n%s", DATE_INSTRUCTION))
+	text = fmt.Sprintf("Нельзя создать задачу в прошлом!\n\n%s", DATE_INSTRUCTION)
 
 	if dueTo.Year() < message.Time().Year() {
 		ok = false
@@ -128,7 +124,6 @@ func getDate(message *tg.Message, descriptions *map[uint]string, db *gorm.DB) (m
 	user.Tasks = append(user.Tasks, task)
 	db.Save(&user)
 
-	msg = tg.NewMessage(message.Chat.ID,
-		fmt.Sprintf("Задача \"%s\" создана!", task.Description))
+	text = fmt.Sprintf("Задача \"%s\" создана!", task.Description)
 	return
 }

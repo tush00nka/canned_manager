@@ -53,8 +53,6 @@ func main() {
 		log.Panic(err)
 	}
 
-	// bot.Debug = true
-
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
 	updateConfig := tg.NewUpdate(0)
@@ -88,18 +86,22 @@ func handleMessages(
 	db.Where(&User{ID: userID}).FirstOrCreate(&user)
 	log.Printf("[%s] %s", message.From.UserName, message.Text)
 
-	var msg tg.MessageConfig
+	var msg tg.MessageConfig = tg.NewMessage(message.Chat.ID, "")
 
 	switch (*states)[userID] {
 	case OVERVIEW:
+		// todo: придумать, как избавиться от этой inconsistency
 		msg = handleOverview(message, states, db)
 	case NEW_TASK:
-		msg = handleNewTask(message, states, newDescriptions, db)
+		msg.Text = handleNewTask(message, states, newDescriptions, db)
 	default:
-		msg = tg.NewMessage(message.Chat.ID, "Unknown state")
+		msg.Text = "Unknown state"
 	}
 
-	bot.Send(msg)
+	_, err := bot.Send(msg)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func handleCallbacks(bot *tg.BotAPI, callback_query *tg.CallbackQuery, db *gorm.DB) {
@@ -108,25 +110,25 @@ func handleCallbacks(bot *tg.BotAPI, callback_query *tg.CallbackQuery, db *gorm.
 		log.Fatal(err)
 	}
 	callback_data := strings.Split(callback_query.Data, "_")
-	var reply tg.MessageConfig
 	var message = callback_query.Message
+	var msg tg.MessageConfig = tg.NewMessage(message.Chat.ID, "")
 	switch callback_data[0] {
 	case "delete":
 		taskID, err := strconv.Atoi(callback_data[1])
 		if err != nil {
 			log.Fatal(err)
 		}
-		reply = delete_task(message, uint(taskID), db)
+		msg.Text = delete_task(uint(taskID), db)
 	case "complete":
 		taskID, err := strconv.Atoi(callback_data[1])
 		if err != nil {
 			log.Fatal(err)
 		}
-		reply = complete_task(message, uint(taskID), db)
+		msg.Text = complete_task(uint(taskID), db)
 	case "cancel":
-		reply = tg.NewMessage(message.Chat.ID, "Действие отменено")
+		msg.Text = "Действие отменено"
 	default:
-		reply = tg.NewMessage(message.Chat.ID, "Unknown Callback")
+		msg.Text = "Unknown Callback"
 	}
 
 	edit := tg.NewEditMessageReplyMarkup(message.Chat.ID, message.MessageID,
@@ -134,6 +136,12 @@ func handleCallbacks(bot *tg.BotAPI, callback_query *tg.CallbackQuery, db *gorm.
 			InlineKeyboard: make([][]tg.InlineKeyboardButton, 0),
 		})
 
-	bot.Send(edit)
-	bot.Send(reply)
+	_, err := bot.Send(edit)
+	if err != nil {
+		log.Fatal(err)
+	}
+	_, err = bot.Send(msg)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

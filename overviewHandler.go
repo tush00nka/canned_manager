@@ -8,41 +8,41 @@ import (
 )
 
 func handleOverview(message *tg.Message, states *map[uint]userState, db *gorm.DB) (msg tg.MessageConfig) {
+	msg.ChatID = message.Chat.ID
+
 	switch message.Command() {
 	case "start":
-		msg = start(message)
+		msg.Text = start()
 
 	case "new_task":
-		msg = add_task(message)
+		msg.Text = add_task()
 		(*states)[uint(message.From.ID)] = NEW_TASK
 
 	case "list":
-		msg = list_tasks(message, db)
+		msg.Text = list_tasks(message, db)
 
 	case "delete":
-		msg = select_task(message, db, "delete")
+		msg.Text, msg.ReplyMarkup = select_task(message, db, "delete")
 
 	case "complete":
-		msg = select_task(message, db, "complete")
+		msg.Text, msg.ReplyMarkup = select_task(message, db, "complete")
 
 	case "stats":
 		var user User
 		db.First(&user, message.From.ID)
-		msg = tg.NewMessage(message.Chat.ID,
-			"Статистика:\n\n"+
-				fmt.Sprintf("Всего выполнено задач: %d\n", user.CompletedTasksNumber)+
-				fmt.Sprintf("Всего просрочено задач: %d", user.ExpiredTasksNumber))
+		msg.Text = "Статистика:\n\n" +
+			fmt.Sprintf("Всего выполнено задач: %d\n", user.CompletedTasksNumber) +
+			fmt.Sprintf("Всего просрочено задач: %d", user.ExpiredTasksNumber)
 
 	case "help":
-		msg = tg.NewMessage(message.Chat.ID,
-			"Вот что я умею:\n"+
-				"/start - Запуск бота\n"+
-				"/new_task - Добавить задачу\n"+
-				"/list - Отобразить список задач\n"+
-				"/delete - Удалить задачу\n"+
-				"/help - Отобразить эту справку\n")
+		msg.Text = "Вот что я умею:\n" +
+			"/start - Запуск бота\n" +
+			"/new_task - Добавить задачу\n" +
+			"/list - Отобразить список задач\n" +
+			"/delete - Удалить задачу\n" +
+			"/help - Отобразить эту справку\n"
 	default:
-		msg = tg.NewMessage(message.Chat.ID, "Я Вас не понимаю(")
+		msg.Text = "Я Вас не понимаю("
 	}
 	return
 }
