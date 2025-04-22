@@ -3,6 +3,8 @@ package main
 import (
 	"time"
 
+	"slices"
+
 	gocron "github.com/go-co-op/gocron"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"gorm.io/gorm"
@@ -19,11 +21,15 @@ func set_reminder(bot *tgbotapi.BotAPI, db *gorm.DB) {
 		for _, user := range users {
 			var tasks []Task
 			db.Find(&tasks, Task{UserID: user.ID})
-			for _, task := range tasks {
+
+			// var day_left_message string = "Сегодня последний день по задачам:\n"
+			var expired_message string = "Срок выполнения задач истёк, задачи удалены:\n\n"
+
+			for i, task := range tasks {
 				if task.DueTo.Day() == time.Now().Day() &&
 					task.DueTo.Month() == time.Now().Month() &&
 					task.DueTo.Year() == time.Now().Year() {
-					msg := tgbotapi.NewMessage(int64(user.ID), "Сегодня последний день по задаче:\n"+task.Description)
+					msg := tgbotapi.NewMessage(int64(user.ID), "Сегодня последний день по задаче:\n\n"+task.Description)
 					bot.Send(msg)
 					continue
 				}
@@ -31,10 +37,24 @@ func set_reminder(bot *tgbotapi.BotAPI, db *gorm.DB) {
 				if task.DueTo.Day() == time.Now().Day()+1 &&
 					task.DueTo.Month() == time.Now().Month() &&
 					task.DueTo.Year() == time.Now().Year() {
-					msg := tgbotapi.NewMessage(int64(user.ID), "Завтра последний день по задаче:\n"+task.Description)
+					msg := tgbotapi.NewMessage(int64(user.ID), "Завтра последний день по задаче:\n\n"+task.Description)
 					bot.Send(msg)
 					continue
 				}
+
+				if task.DueTo.Day() > time.Now().Day() &&
+					task.DueTo.Month() == time.Now().Month() &&
+					task.DueTo.Year() == time.Now().Year() {
+					expired_message += task.Description + "\n"
+					user.Tasks = slices.Delete(tasks, i, i+1)
+					i--
+				}
+			}
+			db.Save(&user)
+			if len(tasks) != len(user.Tasks) {
+				msg := tgbotapi.NewMessage(int64(user.ID), expired_message)
+				bot.Send(msg)
+				continue
 			}
 		}
 	})
