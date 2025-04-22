@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -70,97 +69,71 @@ func main() {
 
 	for update := range updates {
 		if update.Message != nil {
-			userID := uint(update.Message.From.ID)
-			var user User
-			db.Where(&User{ID: userID}).FirstOrCreate(&user)
-			log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
-
-			var msg tg.MessageConfig
-
-			switch states[userID] {
-			case OVERVIEW:
-				msg = handleOverview(update.Message, &states, db)
-			case NEW_TASK:
-				msg = handleNewTask(update.Message, &states, &newDescriptions, db)
-			default:
-				msg = tg.NewMessage(update.Message.Chat.ID, "Unknown state")
-			}
-
-			bot.Send(msg)
-
+			handleMessages(bot, update.Message, &states, &newDescriptions, db)
 		} else if update.CallbackQuery != nil {
-			callback := tg.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data)
-			if _, err := bot.Request(callback); err != nil {
-				log.Fatal(err)
-			}
-			callback_data := strings.Split(update.CallbackQuery.Data, "_")
-			var msg tg.MessageConfig
-			switch callback_data[0] {
-			case "delete":
-				taskID, err := strconv.Atoi(callback_data[1])
-				if err != nil {
-					log.Fatal(err)
-				}
-				msg = delete_task(update.CallbackQuery.Message, uint(taskID), db)
-			case "complete":
-				taskID, err := strconv.Atoi(callback_data[1])
-				if err != nil {
-					log.Fatal(err)
-				}
-				msg = complete_task(update.CallbackQuery.Message, uint(taskID), db)
-			case "cancel":
-				msg = tg.NewMessage(update.CallbackQuery.Message.Chat.ID, "Действие отменено")
-			default:
-				msg = tg.NewMessage(update.CallbackQuery.Message.Chat.ID, "Unknown Callback")
-			}
-
-			edit := tg.NewEditMessageReplyMarkup(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID,
-				tg.InlineKeyboardMarkup{
-					InlineKeyboard: make([][]tg.InlineKeyboardButton, 0),
-				})
-
-			bot.Send(edit)
-			bot.Send(msg)
+			handleCallbacks(bot, update.CallbackQuery, db)
 		}
 	}
 }
 
-func handleOverview(message *tg.Message, states *map[uint]userState, db *gorm.DB) (msg tg.MessageConfig) {
-	switch message.Command() {
-	case "start":
-		msg = start(message)
+func handleMessages(
+	bot *tg.BotAPI,
+	message *tg.Message,
+	states *map[uint]userState,
+	newDescriptions *map[uint]string,
+	db *gorm.DB) {
 
-	case "new_task":
-		msg = add_task(message)
-		(*states)[uint(message.From.ID)] = NEW_TASK
+	userID := uint(message.From.ID)
+	var user User
+	db.Where(&User{ID: userID}).FirstOrCreate(&user)
+	log.Printf("[%s] %s", message.From.UserName, message.Text)
 
-	case "list":
-		msg = list_tasks(message, db)
+	var msg tg.MessageConfig
 
-	case "delete":
-		msg = select_task_to_delete(message, db)
-
-	case "complete":
-		msg = select_task_to_complete(message, db)
-
-	case "stats":
-		var user User
-		db.First(&user, message.From.ID)
-		msg = tg.NewMessage(message.Chat.ID,
-			"Статистика:\n\n"+
-				"Всего выполнено задач: "+fmt.Sprint(user.CompletedTasksNumber)+"\n"+
-				"Всего просрочено задач: "+fmt.Sprint(user.ExpiredTasksNumber))
-
-	case "help":
-		msg = tg.NewMessage(message.Chat.ID,
-			"Вот что я умею:\n"+
-				"/start - Запуск бота\n"+
-				"/new_task - Добавить задачу\n"+
-				"/list - Отобразить список задач\n"+
-				"/delete - Удалить задачу\n"+
-				"/help - Отобразить эту справку\n")
+	switch (*states)[userID] {
+	case OVERVIEW:
+		msg = handleOverview(message, states, db)
+	case NEW_TASK:
+		msg = handleNewTask(message, states, newDescriptions, db)
 	default:
-		msg = tg.NewMessage(message.Chat.ID, "I don't know that command")
+		msg = tg.NewMessage(message.Chat.ID, "Unknown state")
 	}
-	return
+
+	bot.Send(msg)
+}
+
+func handleCallbacks(bot *tg.BotAPI, callback_query *tg.CallbackQuery, db *gorm.DB) {
+	callback := tg.NewCallback(callback_query.ID, callback_query.Data)
+	if _, err := bot.Request(callback); err != nil {
+		log.Fatal(err)
+	}
+	callback_data := strings.Split(callback_query.Data, "_")
+	var reply tg.MessageConfig
+	var message = callback_query.Message
+	switch callback_data[0] {
+	case "delete":
+		taskID, err := strconv.Atoi(callback_data[1])
+		if err != nil {
+			log.Fatal(err)
+		}
+		reply = delete_task(message, uint(taskID), db)
+	case "complete":
+		taskID, err := strconv.Atoi(callback_data[1])
+		if err != nil {
+			log.Fatal(err)
+		}
+		reply = complete_task(message, uint(taskID), db)
+	case "cancel":
+		reply = tg.NewMessage(message.Chat.ID, "Действие отменено")
+	default:
+		reply = tg.NewMessage(message.Chat.ID, "Unknown Callback")
+	}
+
+	edit := tg.NewEditMessageReplyMarkup(message.Chat.ID, message.MessageID,
+		tg.InlineKeyboardMarkup{
+			InlineKeyboard: make([][]tg.InlineKeyboardButton, 0),
+		})
+
+	bot.Send(edit)
+	bot.Send(reply)
 }

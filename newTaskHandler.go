@@ -10,6 +10,9 @@ import (
 	"gorm.io/gorm"
 )
 
+const TASK_INSTRUCTION string = "Опишите задачу"
+const DATE_INSTRUCTION string = "Введите предельную дату выполнения задачи\n(ДД.ММ.ГГ или ДД.ММ)"
+
 func handleNewTask(
 	message *tg.Message,
 	states *map[uint]userState,
@@ -19,8 +22,20 @@ func handleNewTask(
 	userID := uint(message.From.ID)
 
 	if (*descriptions)[userID] == "" {
+		if len(message.Photo) > 0 {
+			msg = tg.NewMessage(message.Chat.ID,
+				fmt.Sprintf("Классная картинка, но описание задачи должно содержать текст!\n\n%s", TASK_INSTRUCTION))
+			return
+		}
+
+		if message.Text == "" {
+			msg = tg.NewMessage(message.Chat.ID,
+				fmt.Sprintf("Описание задачи должно содежрать текст!\n\n%s", TASK_INSTRUCTION))
+			return
+		}
+
 		(*descriptions)[userID] = message.Text
-		msg = tg.NewMessage(message.Chat.ID, "Введите предельную дату выполнения задачи\n(ДД.ММ.ГГ или ДД.ММ)")
+		msg = tg.NewMessage(message.Chat.ID, DATE_INSTRUCTION)
 	} else {
 		var ok bool
 		msg, ok = getDate(message, descriptions, db)
@@ -84,7 +99,7 @@ func getDate(message *tg.Message, descriptions *map[uint]string, db *gorm.DB) (m
 	parsed_date := strings.Split(message.Text, ".")
 
 	msg = tg.NewMessage(message.Chat.ID,
-		"Неверный формат даты!\n\nВведите предельную дату выполнения задачи\n(ДД.ММ.ГГ или ДД.ММ)")
+		fmt.Sprintf("Неверный формат даты!\n\n%s", DATE_INSTRUCTION))
 
 	dueTo, ok := newDueTo(&parsed_date)
 
@@ -93,7 +108,7 @@ func getDate(message *tg.Message, descriptions *map[uint]string, db *gorm.DB) (m
 	}
 
 	msg = tg.NewMessage(message.Chat.ID,
-		"Нельзя создать задачу в прошлом!\n\nВведите предельную дату выполнения задачи\n(ДД.ММ.ГГ или ДД.ММ)")
+		fmt.Sprintf("Нельзя создать задачу в прошлом!\n\n%s", DATE_INSTRUCTION))
 
 	if dueTo.Year() < message.Time().Year() {
 		ok = false
@@ -113,6 +128,7 @@ func getDate(message *tg.Message, descriptions *map[uint]string, db *gorm.DB) (m
 	user.Tasks = append(user.Tasks, task)
 	db.Save(&user)
 
-	msg = tg.NewMessage(message.Chat.ID, "Задача создана!")
+	msg = tg.NewMessage(message.Chat.ID,
+		fmt.Sprintf("Задача \"%s\" создана!", task.Description))
 	return
 }

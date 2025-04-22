@@ -9,7 +9,8 @@ import (
 )
 
 func start(message *tg.Message) (msg tg.MessageConfig) {
-	msg = tg.NewMessage(message.Chat.ID, "Привет! Я - бот-менеджер. Я помогаю организовать задачи и напоминаю о дедлайнах.\n\nДля получения справки используйте команду /help")
+	msg = tg.NewMessage(message.Chat.ID,
+		"Привет! Я - бот-менеджер. Я помогаю организовать задачи и напоминаю о дедлайнах.\n\nДля получения справки используйте команду /help")
 	return
 }
 
@@ -40,12 +41,12 @@ func list_tasks(message *tg.Message, db *gorm.DB) (msg tg.MessageConfig) {
 }
 
 func add_task(message *tg.Message) (msg tg.MessageConfig) {
-	msg = tg.NewMessage(message.Chat.ID, "Опишите задачу:")
+	msg = tg.NewMessage(message.Chat.ID, "Опишите задачу")
 
 	return
 }
 
-func select_task_to_delete(message *tg.Message, db *gorm.DB) (msg tg.MessageConfig) {
+func select_task(message *tg.Message, db *gorm.DB, callback_name string) (msg tg.MessageConfig) {
 	userID := uint(message.From.ID)
 
 	var tasks []Task
@@ -56,14 +57,25 @@ func select_task_to_delete(message *tg.Message, db *gorm.DB) (msg tg.MessageConf
 		return
 	}
 
-	msg = tg.NewMessage(message.Chat.ID, "Выберите задачу для удаления")
+	var goal string
+
+	switch callback_name {
+	case "delete":
+		goal = "удаления"
+	case "complete":
+		goal = "выполнения"
+	default:
+		goal = "действия"
+	}
+
+	msg = tg.NewMessage(message.Chat.ID, fmt.Sprintf("Выберите задачу для %s", goal))
 
 	keyboard := tg.NewInlineKeyboardMarkup()
 
 	for _, task := range tasks {
 		keyboard.InlineKeyboard =
 			append(keyboard.InlineKeyboard,
-				tg.NewInlineKeyboardRow(tg.NewInlineKeyboardButtonData(task.Description, "delete_"+fmt.Sprint(task.ID))))
+				tg.NewInlineKeyboardRow(tg.NewInlineKeyboardButtonData(task.Description, fmt.Sprintf("%s_%d", callback_name, task.ID))))
 	}
 
 	keyboard.InlineKeyboard = append(keyboard.InlineKeyboard,
@@ -84,35 +96,6 @@ func delete_task(message *tg.Message, taskID uint, db *gorm.DB) (msg tg.MessageC
 	return
 }
 
-func select_task_to_complete(message *tg.Message, db *gorm.DB) (msg tg.MessageConfig) {
-	userID := uint(message.From.ID)
-
-	var tasks []Task
-	db.Find(&tasks, Task{UserID: userID})
-
-	if len(tasks) <= 0 {
-		msg = tg.NewMessage(message.Chat.ID, "У вас нет задач!")
-		return
-	}
-
-	msg = tg.NewMessage(message.Chat.ID, "Выберите задачу для выполнения")
-
-	keyboard := tg.NewInlineKeyboardMarkup()
-
-	for _, task := range tasks {
-		keyboard.InlineKeyboard =
-			append(keyboard.InlineKeyboard,
-				tg.NewInlineKeyboardRow(tg.NewInlineKeyboardButtonData(task.Description, "complete_"+fmt.Sprint(task.ID))))
-	}
-
-	keyboard.InlineKeyboard = append(keyboard.InlineKeyboard,
-		tg.NewInlineKeyboardRow(tg.NewInlineKeyboardButtonData("Отмена", "cancel")))
-
-	msg.ReplyMarkup = keyboard
-
-	return
-}
-
 func complete_task(message *tg.Message, taskID uint, db *gorm.DB) (msg tg.MessageConfig) {
 
 	var task Task
@@ -123,7 +106,8 @@ func complete_task(message *tg.Message, taskID uint, db *gorm.DB) (msg tg.Messag
 	db.Save(&user)
 	db.Delete(&task)
 
-	msg = tg.NewMessage(message.Chat.ID, "Задача Выполнена!\nВсего выполнено задач: "+fmt.Sprint(user.CompletedTasksNumber))
+	msg = tg.NewMessage(message.Chat.ID,
+		fmt.Sprintf("Задача Выполнена!\nВсего выполнено задач: %d", user.CompletedTasksNumber))
 
 	return
 }
