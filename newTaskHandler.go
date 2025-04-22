@@ -6,21 +6,21 @@ import (
 	"strings"
 	"time"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	tg "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"gorm.io/gorm"
 )
 
 func handleNewTask(
-	message *tgbotapi.Message,
+	message *tg.Message,
 	states *map[uint]userState,
 	descriptions *map[uint]string,
-	db *gorm.DB) (msg tgbotapi.MessageConfig) {
+	db *gorm.DB) (msg tg.MessageConfig) {
 
 	userID := uint(message.From.ID)
 
 	if (*descriptions)[userID] == "" {
 		(*descriptions)[userID] = message.Text
-		msg = tgbotapi.NewMessage(message.Chat.ID, "Введите предельную дату выполнения задачи\n(ДД.ММ.ГГ или ДД.ММ)")
+		msg = tg.NewMessage(message.Chat.ID, "Введите предельную дату выполнения задачи\n(ДД.ММ.ГГ или ДД.ММ)")
 	} else {
 		var ok bool
 		msg, ok = getDate(message, descriptions, db)
@@ -78,12 +78,12 @@ func newDueTo(parsed_date *[]string) (dueTo time.Time, ok bool) {
 	return
 }
 
-func getDate(message *tgbotapi.Message, descriptions *map[uint]string, db *gorm.DB) (msg tgbotapi.MessageConfig, ok bool) {
+func getDate(message *tg.Message, descriptions *map[uint]string, db *gorm.DB) (msg tg.MessageConfig, ok bool) {
 	ok = true
 	userID := uint(message.From.ID)
 	parsed_date := strings.Split(message.Text, ".")
 
-	msg = tgbotapi.NewMessage(message.Chat.ID,
+	msg = tg.NewMessage(message.Chat.ID,
 		"Неверный формат даты!\n\nВведите предельную дату выполнения задачи\n(ДД.ММ.ГГ или ДД.ММ)")
 
 	dueTo, ok := newDueTo(&parsed_date)
@@ -92,7 +92,7 @@ func getDate(message *tgbotapi.Message, descriptions *map[uint]string, db *gorm.
 		return
 	}
 
-	msg = tgbotapi.NewMessage(message.Chat.ID,
+	msg = tg.NewMessage(message.Chat.ID,
 		"Нельзя создать задачу в прошлом!\n\nВведите предельную дату выполнения задачи\n(ДД.ММ.ГГ или ДД.ММ)")
 
 	if dueTo.Year() < message.Time().Year() {
@@ -113,6 +113,6 @@ func getDate(message *tgbotapi.Message, descriptions *map[uint]string, db *gorm.
 	user.Tasks = append(user.Tasks, task)
 	db.Save(&user)
 
-	msg = tgbotapi.NewMessage(message.Chat.ID, "Задача создана!")
+	msg = tg.NewMessage(message.Chat.ID, "Задача создана!")
 	return
 }

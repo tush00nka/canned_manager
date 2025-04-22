@@ -1,13 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	tg "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -30,8 +31,9 @@ func connectToDB() *gorm.DB {
 
 type User struct {
 	gorm.Model
-	ID    uint
-	Tasks []Task `gorm:"foreignKey:UserID"`
+	ID                   uint
+	CompletedTasksNumber uint
+	Tasks                []Task `gorm:"foreignKey:UserID"`
 }
 
 type Task struct {
@@ -46,7 +48,7 @@ func main() {
 	db.AutoMigrate(&User{})
 	db.AutoMigrate(&Task{})
 
-	bot, err := tgbotapi.NewBotAPI(os.Getenv("TELEGRAM_BOT_API_TOKEN"))
+	bot, err := tg.NewBotAPI(os.Getenv("TELEGRAM_BOT_API_TOKEN"))
 	if err != nil {
 		log.Panic(err)
 	}
@@ -55,7 +57,7 @@ func main() {
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
-	updateConfig := tgbotapi.NewUpdate(0)
+	updateConfig := tg.NewUpdate(0)
 	updateConfig.Timeout = 60
 
 	updates := bot.GetUpdatesChan(updateConfig)
@@ -72,7 +74,7 @@ func main() {
 			db.Where(&User{ID: userID}).FirstOrCreate(&user)
 			log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
 
-			var msg tgbotapi.MessageConfig
+			var msg tg.MessageConfig
 
 			switch states[userID] {
 			case OVERVIEW:
@@ -80,18 +82,18 @@ func main() {
 			case NEW_TASK:
 				msg = handleNewTask(update.Message, &states, &newDescriptions, db)
 			default:
-				msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Unknown state")
+				msg = tg.NewMessage(update.Message.Chat.ID, "Unknown state")
 			}
 
 			bot.Send(msg)
 
 		} else if update.CallbackQuery != nil {
-			callback := tgbotapi.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data)
+			callback := tg.NewCallback(update.CallbackQuery.ID, update.CallbackQuery.Data)
 			if _, err := bot.Request(callback); err != nil {
 				log.Fatal(err)
 			}
 			callback_data := strings.Split(update.CallbackQuery.Data, "_")
-			var msg tgbotapi.MessageConfig
+			var msg tg.MessageConfig
 			switch callback_data[0] {
 			case "delete":
 				taskID, err := strconv.Atoi(callback_data[1])
@@ -99,8 +101,14 @@ func main() {
 					log.Fatal(err)
 				}
 				msg = delete_task(update.CallbackQuery.Message, uint(taskID), db)
+			case "complete":
+				taskID, err := strconv.Atoi(callback_data[1])
+				if err != nil {
+					log.Fatal(err)
+				}
+				msg = complete_task(update.CallbackQuery.Message, uint(taskID), db)
 			default:
-				msg = tgbotapi.NewMessage(update.Message.Chat.ID, "Unknown Callback")
+				msg = tg.NewMessage(update.Message.Chat.ID, "Unknown Callback")
 			}
 
 			bot.Send(msg)
@@ -108,7 +116,7 @@ func main() {
 	}
 }
 
-func handleOverview(message *tgbotapi.Message, states *map[uint]userState, db *gorm.DB) (msg tgbotapi.MessageConfig) {
+func handleOverview(message *tg.Message, states *map[uint]userState, db *gorm.DB) (msg tg.MessageConfig) {
 	switch message.Command() {
 	case "start":
 		msg = start(message)
@@ -123,8 +131,18 @@ func handleOverview(message *tgbotapi.Message, states *map[uint]userState, db *g
 	case "delete":
 		msg = select_task_to_delete(message, db)
 
+	case "complete":
+		msg = select_task_to_complete(message, db)
+
+	case "stats":
+		var user User
+		db.First(&user, message.From.ID)
+		msg = tg.NewMessage(message.Chat.ID,
+			"Статистика:\n\n"+
+				"Всего выполнено задач: "+fmt.Sprint(user.CompletedTasksNumber))
+
 	case "help":
-		msg = tgbotapi.NewMessage(message.Chat.ID,
+		msg = tg.NewMessage(message.Chat.ID,
 			"Вот что я умею:\n"+
 				"/start - Запуск бота\n"+
 				"/new_task - Добавить задачу\n"+
@@ -132,7 +150,7 @@ func handleOverview(message *tgbotapi.Message, states *map[uint]userState, db *g
 				"/delete - Удалить задачу\n"+
 				"/help - Отобразить эту справку\n")
 	default:
-		msg = tgbotapi.NewMessage(message.Chat.ID, "I don't know that command")
+		msg = tg.NewMessage(message.Chat.ID, "I don't know that command")
 	}
 	return
 }
