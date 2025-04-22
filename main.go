@@ -107,8 +107,10 @@ func main() {
 					log.Fatal(err)
 				}
 				msg = complete_task(update.CallbackQuery.Message, uint(taskID), db)
+			case "cancel":
+				msg = tg.NewMessage(update.CallbackQuery.Message.Chat.ID, "Действие отменено")
 			default:
-				msg = tg.NewMessage(update.Message.Chat.ID, "Unknown Callback")
+				msg = tg.NewMessage(update.CallbackQuery.Message.Chat.ID, "Unknown Callback")
 			}
 
 			edit := tg.NewEditMessageReplyMarkup(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID,

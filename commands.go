@@ -66,6 +66,9 @@ func select_task_to_delete(message *tg.Message, db *gorm.DB) (msg tg.MessageConf
 				tg.NewInlineKeyboardRow(tg.NewInlineKeyboardButtonData(task.Description, "delete_"+fmt.Sprint(task.ID))))
 	}
 
+	keyboard.InlineKeyboard = append(keyboard.InlineKeyboard,
+		tg.NewInlineKeyboardRow(tg.NewInlineKeyboardButtonData("Отмена", "cancel")))
+
 	msg.ReplyMarkup = keyboard
 
 	return
@@ -101,6 +104,9 @@ func select_task_to_complete(message *tg.Message, db *gorm.DB) (msg tg.MessageCo
 			append(keyboard.InlineKeyboard,
 				tg.NewInlineKeyboardRow(tg.NewInlineKeyboardButtonData(task.Description, "complete_"+fmt.Sprint(task.ID))))
 	}
+
+	keyboard.InlineKeyboard = append(keyboard.InlineKeyboard,
+		tg.NewInlineKeyboardRow(tg.NewInlineKeyboardButtonData("Отмена", "cancel")))
 
 	msg.ReplyMarkup = keyboard
 
