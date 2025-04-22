@@ -47,6 +47,7 @@ func set_reminder(bot *tg.BotAPI, db *gorm.DB) {
 					task.DueTo.Year() == time.Now().Year() {
 					expired_message += task.Description + "\n"
 					user.Tasks = slices.Delete(tasks, i, i+1)
+					user.ExpiredTasksNumber++
 					i--
 				}
 			}

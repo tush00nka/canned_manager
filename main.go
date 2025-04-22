@@ -33,6 +33,7 @@ type User struct {
 	gorm.Model
 	ID                   uint
 	CompletedTasksNumber uint
+	ExpiredTasksNumber   uint
 	Tasks                []Task `gorm:"foreignKey:UserID"`
 }
 
@@ -147,7 +148,8 @@ func handleOverview(message *tg.Message, states *map[uint]userState, db *gorm.DB
 		db.First(&user, message.From.ID)
 		msg = tg.NewMessage(message.Chat.ID,
 			"Статистика:\n\n"+
-				"Всего выполнено задач: "+fmt.Sprint(user.CompletedTasksNumber))
+				"Всего выполнено задач: "+fmt.Sprint(user.CompletedTasksNumber)+
+				"Всего просрочено задач: "+fmt.Sprint(user.ExpiredTasksNumber))
 
 	case "help":
 		msg = tg.NewMessage(message.Chat.ID,
