@@ -123,7 +123,7 @@ func complete_task(message *tg.Message, taskID uint, db *gorm.DB) (msg tg.Messag
 	db.Save(&user)
 	db.Delete(&task)
 
-	msg = tg.NewMessage(message.Chat.ID, "Задача Выполнена!\n Всего выполнено задач: "+fmt.Sprint(user.CompletedTasksNumber))
+	msg = tg.NewMessage(message.Chat.ID, "Задача Выполнена!\nВсего выполнено задач: "+fmt.Sprint(user.CompletedTasksNumber))
 
 	return
 }

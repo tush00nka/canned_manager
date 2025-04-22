@@ -148,7 +148,7 @@ func handleOverview(message *tg.Message, states *map[uint]userState, db *gorm.DB
 		db.First(&user, message.From.ID)
 		msg = tg.NewMessage(message.Chat.ID,
 			"Статистика:\n\n"+
-				"Всего выполнено задач: "+fmt.Sprint(user.CompletedTasksNumber)+
+				"Всего выполнено задач: "+fmt.Sprint(user.CompletedTasksNumber)+"\n"+
 				"Всего просрочено задач: "+fmt.Sprint(user.ExpiredTasksNumber))
 
 	case "help":
