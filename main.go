@@ -111,6 +111,12 @@ func main() {
 				msg = tg.NewMessage(update.Message.Chat.ID, "Unknown Callback")
 			}
 
+			edit := tg.NewEditMessageReplyMarkup(update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Message.MessageID,
+				tg.InlineKeyboardMarkup{
+					InlineKeyboard: make([][]tg.InlineKeyboardButton, 0),
+				})
+
+			bot.Send(edit)
 			bot.Send(msg)
 		}
 	}
