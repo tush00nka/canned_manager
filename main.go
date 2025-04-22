@@ -60,16 +60,17 @@ func main() {
 
 	updates := bot.GetUpdatesChan(updateConfig)
 
-	set_reminder(bot, db)
+	set_schedule(bot, db, "8:00", remind)
+	set_schedule(bot, db, "0:00", expire)
 
 	var states map[uint]userState = make(map[uint]userState)
 	var newDescriptions map[uint]string = make(map[uint]string)
 
 	for update := range updates {
 		if update.Message != nil {
-			handleMessages(bot, update.Message, &states, &newDescriptions, db)
+			go handleMessages(bot, update.Message, &states, &newDescriptions, db)
 		} else if update.CallbackQuery != nil {
-			handleCallbacks(bot, update.CallbackQuery, db)
+			go handleCallbacks(bot, update.CallbackQuery, db)
 		}
 	}
 }
