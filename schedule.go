@@ -3,8 +3,6 @@ package main
 import (
 	"time"
 
-	"slices"
-
 	gocron "github.com/go-co-op/gocron"
 	tg "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"gorm.io/gorm"
@@ -51,18 +49,21 @@ func remind(bot *tg.BotAPI, _ *gorm.DB, user *User, tasks *[]Task) { // todo: п
 func expire(bot *tg.BotAPI, db *gorm.DB, user *User, tasks *[]Task) {
 	var expired_message string = "Срок выполнения задач истёк, задачи удалены:\n\n"
 
+	var had_deletions bool = false
+
 	for i, task := range *tasks {
-		if task.DueTo.Day() > time.Now().Day() &&
+		if task.DueTo.Day() < time.Now().Day() &&
 			task.DueTo.Month() == time.Now().Month() &&
 			task.DueTo.Year() == time.Now().Year() {
 			expired_message += task.Description + "\n"
-			user.Tasks = slices.Delete(*tasks, i, i+1)
+			db.Delete(&task)
+			had_deletions = true
 			user.ExpiredTasksNumber++
 			i--
 		}
 	}
 	db.Save(&user)
-	if len(*tasks) != len(user.Tasks) {
+	if had_deletions {
 		msg := tg.NewMessage(int64(user.ID), expired_message)
 		bot.Send(msg)
 	}
